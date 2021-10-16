@@ -4,10 +4,15 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('./model/user');
+const auth = require('./middleware/auth');
 
 const app = express();
 
 app.use(express.json());
+
+app.post("/welcome", auth, (req, res) => {
+    res.status(200).send('Welcome');
+})
 
 // Register
 app.post('/register', async (req, res) => {
