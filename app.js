@@ -3,7 +3,7 @@ require('./config/database').connect();
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const user = require('./model/user');
+const User = require('./model/user');
 
 const app = express();
 
@@ -20,14 +20,14 @@ app.post('/register', async (req, res) => {
         }
 
         // Check if emil in db
-        const existingUser = await user.findOne({ email }).exec();
+        const existingUser = await User.findOne({ email }).exec();
         if (existingUser) {
             res.status(400).send("Email already exists");
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const newUser = await user.create({
+        const newUser = await User.create({
             firstName,
             lastName,
             email: email.toLowerCase(),
@@ -50,8 +50,38 @@ app.post('/register', async (req, res) => {
 });
 
 // Login
-app.post('/login', (req, res) => {
+app.post('/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
 
+        // Validate user input
+        if(!(email && password)) {
+            res.status(400).send("Please enter email and password");
+        }
+
+        const user = await User.findOne({ email });
+        if (user) {
+            if (await bcrypt.compare( password, user.password )) {
+                const token = jwt.sign(
+                    { user_id: user._id, email },
+                    process.env.TOKEN_KEY,
+                    { expiresIn: "2h" }
+                );
+
+                user.token = token;
+                res.status(200).json(user);
+            }
+            else {
+                res.status(400).send("Wrong password")
+            }
+        }
+        else {
+            res.status(404).json("User not found");
+        }
+    }
+    catch (err) {
+        console.error(err);
+    }
 });
 
 module.exports = app;
